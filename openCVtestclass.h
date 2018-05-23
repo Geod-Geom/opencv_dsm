@@ -12,7 +12,14 @@
 #ifndef openCVtestclass_HEADER
 #define openCVtestclass_HEADER 1
 
-#include <opencv/cv.h>
+//#include <opencv/cv.h>
+#include <opencv2/opencv.hpp>
+
+//https://stackoverflow.com/questions/33400823/opencv-3-0-0-cvvector-missing
+namespace cv
+{
+    using std::vector;
+}
 
 class openCVtestclass
 {
@@ -23,7 +30,7 @@ public:
 	bool writeDisparity(double mean_conversionF);
     ossimRefPtr<ossimImageData> computeDSM(double mean_conversionF, ossimElevManager* elev, ossimImageGeometry* master_geom);
 	cv::Mat wallis(cv::Mat raw_image);
-   
+
 	cv::Mat master_mat, slave_mat;
 	cv::vector<cv::KeyPoint> keypoints1, keypoints2;
 	vector<cv::DMatch > good_matches;
@@ -33,9 +40,3 @@ public:
 };
 
 #endif /* #ifndef openCVtestclass_HEADER */
-
-
-
-
-
-             

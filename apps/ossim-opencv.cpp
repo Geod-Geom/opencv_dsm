@@ -63,8 +63,8 @@ static const std::string PROJECTION_KW           = "projection";
 
 bool ortho (ossimKeywordlist kwl)
 {
-	// Make the generator
-	ossimRefPtr<ossimChipperUtil> chipper = new ossimChipperUtil;
+    // Make the generator
+    ossimRefPtr<ossimChipperUtil> chipper = new ossimChipperUtil;
 
     try
     {
@@ -77,13 +77,13 @@ bool ortho (ossimKeywordlist kwl)
 		<< std::setiosflags(ios::fixed)
 		<< std::setprecision(3)
         << ossimTimer::instance()->time_s() << endl << endl;
-	}
-	catch (const ossimException& e)
-	{
-		ossimNotify(ossimNotifyLevel_WARN) << e.what() << endl;
-		exit(1);
-	}
-	return true;
+    }
+    catch (const ossimException& e)
+    {
+        ossimNotify(ossimNotifyLevel_WARN) << e.what() << endl;
+        exit(1);
+    }
+    return true;
 }
 
 

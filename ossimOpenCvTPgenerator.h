@@ -12,13 +12,20 @@
 #ifndef ossimOpenCvTPgenerator_HEADER
 #define ossimOpenCvTPgenerator_HEADER 1
 
-#include <opencv/cv.h>
+//#include <opencv/cv.h>
+#include <opencv2/opencv.hpp>
+
+//https://stackoverflow.com/questions/33400823/opencv-3-0-0-cvvector-missing
+namespace cv
+{
+    using std::vector;
+}
 
 class ossimOpenCvTPgenerator
 {
 public:
 	ossimOpenCvTPgenerator();
-	ossimOpenCvTPgenerator(cv::Mat master, cv::Mat slave); 
+	ossimOpenCvTPgenerator(cv::Mat master, cv::Mat slave);
 	void run();
 	void TPgen();
 	void TPdraw();

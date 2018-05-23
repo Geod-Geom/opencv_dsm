@@ -12,7 +12,8 @@
 #ifndef ossimOpenCvDisparityMapGenerator_HEADER
 #define ossimOpenCvDisparityMapGenerator_HEADER 1
 
-#include <opencv/cv.h>
+//#include <opencv/cv.h>
+#include <opencv2/opencv.hpp>
 
 class ossimOpenCvDisparityMapGenerator
 {
@@ -25,4 +26,4 @@ public:
 	int minimumDisp;
 };
 
-#endif /* #ifndef ossimOpenCvDisparityMapGenerator_HEADER */               
+#endif /* #ifndef ossimOpenCvDisparityMapGenerator_HEADER */

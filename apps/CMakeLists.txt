@@ -1,6 +1,6 @@
 cmake_minimum_required (VERSION 2.8)
 
-project(ossim-dsm-app )
+project(ossim-DATE-plugin )
 
 set(requiredLibs)
 
@@ -57,19 +57,19 @@ message( STATUS "Required libs       = ${requiredLibs}")
 # ---
 
 # Add the executable:
-add_executable(ossim-dsm-app ossim-opencv.cpp)
+add_executable(ossim-DATE-plugin ossim-opencv.cpp)
 
 # Set the output dir:
-set_target_properties(ossim-dsm-app 
+set_target_properties(ossim-DATE-plugin
                       PROPERTIES 
                       RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 
 # Link the utility and ossim libraries:
 message( STATUS "Required libs = ${requiredLibs}" )
-target_link_libraries( ossim-dsm-app ${requiredLibs} ossimopencv_dsm_plugin)
+target_link_libraries( ossim-DATE-plugin ${requiredLibs} ossimopencv_dsm_plugin)
 
 # Install app and shared lib:
-install(TARGETS ossim-dsm-app
+install(TARGETS ossim-DATE-plugin
         DESTINATION bin
         LIBRARY DESTINATION)
 

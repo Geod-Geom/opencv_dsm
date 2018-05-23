@@ -15,9 +15,11 @@
 
 #include "ossimOpenCvTPgenerator.h"
 
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/flann/flann.hpp>
-#include <opencv2/legacy/legacy.hpp>
+#include <opencv2/highgui.hpp>
+//#include <opencv2/flann.hpp>
+//#include <opencv2/legacy.hpp>
+#include <opencv2/features2d.hpp>
+#include <opencv2/xfeatures2d.hpp>
 // Note: These are purposely commented out to indicate non-use.
 // #include <opencv2/nonfree/nonfree.hpp>
 // #include <opencv2/nonfree/features2d.hpp>
@@ -42,14 +44,14 @@ void ossimOpenCvTPgenerator::run()
     filtro->apply(master_mat, master_mat);
     filtro->apply(slave_mat, slave_mat);*/
 
-    cv::namedWindow( "master_img", CV_WINDOW_NORMAL );
+    cv::namedWindow( "master_img", cv::WINDOW_NORMAL );
     cv::imshow("master_img", master_mat);
-   
-    cv::namedWindow( "slave_img", CV_WINDOW_NORMAL );
+
+    cv::namedWindow( "slave_img", cv::WINDOW_NORMAL );
     cv::imshow("slave_img", slave_mat);
-   
-	TPgen();  
-	TPdraw();
+
+    TPgen();
+    TPdraw();
 }
 
 void ossimOpenCvTPgenerator::TPgen()
@@ -60,19 +62,30 @@ void ossimOpenCvTPgenerator::TPgen()
 	detector.detect(master_mat, keypoints1);
 	detector.detect(slave_mat, keypoints2);
     */
+
     cv::Ptr<cv::FeatureDetector> m_detector;
-    cv::Ptr<cv::OrbFeatureDetector> detector = cv::FeatureDetector::create("ORB");
-    m_detector = new cv::GridAdaptedFeatureDetector (detector, 500, 5, 5 );
+
+    /*cv::Ptr<cv::OrbFeatureDetector> detector = cv::FeatureDetector::create("ORB");
+    m_detector = new cv::GridAdaptedFeatureDetector (detector, 500, 5, 5 );*/
+    cv::Ptr<cv::ORB> detector = cv::ORB::create();
+    detector->setMaxFeatures(500);
+    // riga di codice problematica perché GridAdaptedFeatureDetector non esiste più in OpenCV 3
+    m_detector = detector;
+
     m_detector->detect(master_mat, keypoints1);
     m_detector->detect(slave_mat, keypoints2);
 
     cerr << "Features found = " << keypoints1.size() << " \tmaster " << keypoints2.size() << " \tslave " << endl;
 
 	// Computing descriptors
-	cv::BriefDescriptorExtractor extractor;
+	//cv::BriefDescriptorExtractor extractor;
+    cv::Ptr<cv::xfeatures2d::BriefDescriptorExtractor> extractor =cv::xfeatures2d::BriefDescriptorExtractor::create ( );
+
 	cv::Mat descriptors1, descriptors2;
-	extractor.compute(master_mat, keypoints1, descriptors1);
-	extractor.compute(slave_mat, keypoints2, descriptors2);
+	/*extractor.compute(master_mat, keypoints1, descriptors1);
+	extractor.compute(slave_mat, keypoints2, descriptors2);*/
+    extractor->compute(master_mat, keypoints1, descriptors1);
+    extractor->compute(slave_mat, keypoints2, descriptors2);
 
 	// Matching descriptors
 	cv::BFMatcher matcher(cv::NORM_L2);
@@ -114,16 +127,16 @@ void ossimOpenCvTPgenerator::TPgen()
        }
 
     // Showing the result
-    cv::namedWindow( "Prova_harris_master", CV_WINDOW_NORMAL );
+    cv::namedWindow( "Prova_harris_master", cv::WINDOW_NORMAL );
     cv::imshow( "Prova_harris_master", dst);
     // Showing the result
-    cv::namedWindow( "Prova_harris_slave", CV_WINDOW_NORMAL );
+    cv::namedWindow( "Prova_harris_slave", cv::WINDOW_NORMAL );
     cv::imshow( "Prova_harris_slave", dst_slave);
 
     cv::resize(dst_slave, dst_slave, dst.size());
     cv::Mat product = dst.mul(dst_slave);
 
-    cv::namedWindow( "Prova_harris_product", CV_WINDOW_NORMAL );
+    cv::namedWindow( "Prova_harris_product", cv::WINDOW_NORMAL );
     cv::imshow( "Prova_harris_product", product);
 
 */
@@ -216,19 +229,19 @@ void ossimOpenCvTPgenerator::TPgen()
             corr_values.at<double>(j+i*n_rows,3) = corner_slave.y;
             corr_values.at<double>(j+i*n_rows,4) = maxVal;
 
-            cv::namedWindow("Template image", CV_WINDOW_NORMAL);
+            cv::namedWindow("Template image", cv::WINDOW_NORMAL);
             cv::imshow("Template image", templ );
-            cv::namedWindow("Research image", CV_WINDOW_NORMAL);
+            cv::namedWindow("Research image", cv::WINDOW_NORMAL);
             cv::imshow("Research image", research );
 
             // Show me what you got
             rectangle( research_display, maxLoc, cv::Point( maxLoc.x + templ.cols , maxLoc.y + templ.rows ), cv::Scalar::all(0), 2, 8, 0 );
             rectangle( result, cv::Point( maxLoc.x - 0.5*templ.cols , maxLoc.y - 0.5*templ.rows ), cv::Point( maxLoc.x + 0.5*templ.cols , maxLoc.y + 0.5*templ.rows ), cv::Scalar::all(0), 2, 8, 0 );
 
-            cv::namedWindow("Source image", CV_WINDOW_NORMAL);
+            cv::namedWindow("Source image", cv::WINDOW_NORMAL);
             cv::imshow( "Source image", research_display );
 
-            cv::namedWindow("Result window", CV_WINDOW_NORMAL);
+            cv::namedWindow("Result window", cv::WINDOW_NORMAL);
             cv::imshow( "Result window", result );
 
             NewcenterX_master += centerX_master;
@@ -390,7 +403,7 @@ void ossimOpenCvTPgenerator::TPdraw()
 
     cv::resize(img_matches, img_matches, cv::Size(), 1.0/1.0, 1.0/1.0, cv::INTER_AREA);
 
-    cv::namedWindow("TP matched", CV_WINDOW_NORMAL );
+    cv::namedWindow("TP matched", cv::WINDOW_NORMAL );
     cv::imshow("TP matched", img_matches );
 
     cv::waitKey(0);
@@ -453,11 +466,11 @@ cv::Mat ossimOpenCvTPgenerator::warp(cv::Mat slave_16bit)
 	cv::warpAffine(slave_mat, warp_dst, rot_matrix, warp_dst.size());
 	cv::warpAffine(slave_16bit, warp_dst_16bit, rot_matrix, warp_dst.size());
     
-    //cv::namedWindow("Master image", CV_WINDOW_NORMAL);
+    //cv::namedWindow("Master image", cv::WINDOW_NORMAL);
     //cv::imshow("Master image", master_mat );
 	cv::imwrite("Master_8bit.tif",  master_mat);
 
-    //cv::namedWindow("Warped image", CV_WINDOW_NORMAL);
+    //cv::namedWindow("Warped image", cv::WINDOW_NORMAL);
     //cv::imshow("Warped image", warp_dst );
 	cv::imwrite("Slave_8bit.tif",  warp_dst);
 	
