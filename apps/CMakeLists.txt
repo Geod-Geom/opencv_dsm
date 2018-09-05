@@ -34,10 +34,10 @@ SET(requiredLib)
 
 find_package( OpenCV )
 if( OPENCV_FOUND )
-	include_directories( ${OPENCV_INCLUDE_DIR} )
-	set( requiredLib ${requiredLib} ${OPENCV_LIBRARIES} )
+  include_directories( ${OPENCV_INCLUDE_DIR} )
+  set( requiredLib ${requiredLib} ${OPENCV_LIBRARIES} )
 else( OPENCV_FOUND )
-	message( FATAL_ERROR "Could not find OpenCV package!" )
+  message( FATAL_ERROR "Could not find OpenCV package!" )
 endif( OPENCV_FOUND )
 
 # Add our include...
@@ -60,16 +60,16 @@ message( STATUS "Required libs       = ${requiredLibs}")
 add_executable(ossim-DATE-plugin ossim-opencv.cpp)
 
 # Set the output dir:
-set_target_properties(ossim-DATE-plugin
+set_target_properties(ossim-DATE-plugin 
                       PROPERTIES 
                       RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 
 # Link the utility and ossim libraries:
 message( STATUS "Required libs = ${requiredLibs}" )
-target_link_libraries( ossim-DATE-plugin ${requiredLibs} ossimopencv_dsm_plugin)
+target_link_libraries( ossim-DATE-plugin  ${requiredLibs} ossimopencv_dsm_plugin)
 
 # Install app and shared lib:
-install(TARGETS ossim-DATE-plugin
+install(TARGETS ossim-DATE-plugin 
         DESTINATION bin
         LIBRARY DESTINATION)
 
