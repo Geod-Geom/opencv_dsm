@@ -10,14 +10,9 @@
 //
 //----------------------------------------------------------------------------
 
-#include <ossim/base/ossimIrect.h>
 #include <ossim/imaging/ossimImageSource.h>
-
 #include "ossimOpenCvTPgenerator.h"
-
 #include <opencv2/highgui.hpp>
-//#include <opencv2/flann.hpp>
-//#include <opencv2/legacy.hpp>
 #include <opencv2/features2d.hpp>
 #include <opencv2/xfeatures2d.hpp>
 // Note: These are purposely commented out to indicate non-use.
@@ -32,366 +27,286 @@ ossimOpenCvTPgenerator::ossimOpenCvTPgenerator()
 
 }
 
+
 ossimOpenCvTPgenerator::ossimOpenCvTPgenerator(cv::Mat master, cv::Mat slave)
 {
-	master_mat = master;
-	slave_mat = slave;
+    // Create the OpenCV images
+    master_mat = master;
+    slave_mat = slave;
 }
 
-void ossimOpenCvTPgenerator::run()
+bool ossimOpenCvTPgenerator::execute()
 {
-    /*cv::Ptr<cv::CLAHE> filtro = cv::createCLAHE(8.0); //threshold for contrast limiting
-    filtro->apply(master_mat, master_mat);
-    filtro->apply(slave_mat, slave_mat);*/
-
-    cv::namedWindow( "master_img", cv::WINDOW_NORMAL );
-    cv::imshow("master_img", master_mat);
-
-    cv::namedWindow( "slave_img", cv::WINDOW_NORMAL );
-    cv::imshow("slave_img", slave_mat);
 
     TPgen();
     TPdraw();
+    TPwarp();
+
+    //cv::Mat slave_mat_warp = TPfinder->warp(slave_mat);
+   // slave_mat_warp = TPfinder->warp(slave_mat);
+
+    //spostao in dispMapGen
+    /*
+    ossimOpenCvDisparityMapGenerator* dense_matcher = new ossimOpenCvDisparityMapGenerator();
+    out_disp = dense_matcher->execute(master_mat_8U, slave_mat_warp);
+
+   // ogni disp map deve essere ruotata, convertita a CV_64F, divisa per 16 bit, resa metrica tramite il conv fact
+
+    // Rotation for along-track OPTICAL images
+    //********* To be commented for SAR images *********
+    //cv::transpose(out_disp, out_disp);
+    //cv::flip(out_disp, out_disp, 0);
+    //********* To be commented for SAR images *********
+
+    out_disp.convertTo(out_disp, CV_64F);
+    out_disp = ((out_disp/16.0)) / ConversionFactor; //quando divido per il fattore di conversione le rendo metriche
+
+    // Nel vettore globale di cv::Mat immagazzino tutte le mappe di disparità che genero ad ogni ciclo
+    fusedDisp_array.push_back(out_disp);
+    //null_disp_threshold = (dense_matcher->minimumDisp)+0.5;*/
+
+    return true;
 }
+
 
 void ossimOpenCvTPgenerator::TPgen()
 {
+    cv::Ptr<cv::CLAHE> filtro = cv::createCLAHE(8.0);
+    filtro->apply(master_mat, master_mat);
+    filtro->apply(slave_mat, slave_mat);
+
+    
+
+    int maxTotalKeypoints = 500;
+    int gridRows_ = 5;
+    int gridCols_ = 5;
+    int maxPerCell_ = maxTotalKeypoints / (gridRows_ * gridCols_);
+
+
+
+	keypoints1.reserve(maxTotalKeypoints);
+	keypoints2.reserve(maxTotalKeypoints);
     // Computing detector
-    /*
-    cv::OrbFeatureDetector detector(30000, 2.0f,8, 151, 0, 2, cv::ORB::HARRIS_SCORE, 151 ); // edgeThreshold = 150, patchSize = 150);
-	detector.detect(master_mat, keypoints1);
-	detector.detect(slave_mat, keypoints2);
-    */
+
+    //cv::OrbFeatureDetector detector(30000);//, 2.0f,8, 151, 0, 2, cv::ORB::HARRIS_SCORE, 151 ); // edgeThreshold = 150, patchSize = 150);
+    //detector.detect(master_mat, keypoints1);
+    //detector.detect(slave_mat, keypoints2);
 
     cv::Ptr<cv::FeatureDetector> m_detector;
-
-    /*cv::Ptr<cv::OrbFeatureDetector> detector = cv::FeatureDetector::create("ORB");
-    m_detector = new cv::GridAdaptedFeatureDetector (detector, 500, 5, 5 );*/
+    //cv::Ptr<cv::OrbFeatureDetector> detector = cv::FeatureDetector::create("ORB");
     cv::Ptr<cv::ORB> detector = cv::ORB::create();
-    detector->setMaxFeatures(500);
+    //detector->setMaxFeatures(500);
+    detector->setMaxFeatures(maxPerCell_);
+
+    //m_detector = new cv::GridAdaptedFeatureDetector (detector, 500, 5, 5 );
     // riga di codice problematica perché GridAdaptedFeatureDetector non esiste più in OpenCV 3
     m_detector = detector;
+    //m_detector->detect(master_mat, keypoints1);
+    //m_detector->detect(slave_mat, keypoints2);
 
-    m_detector->detect(master_mat, keypoints1);
-    m_detector->detect(slave_mat, keypoints2);
 
-    cerr << "Features found = " << keypoints1.size() << " \tmaster " << keypoints2.size() << " \tslave " << endl;
+    // for loop over the grid containing the sub images
+    for(int i = 0; i < gridRows_* gridCols_; i++)
+    {
 
-	// Computing descriptors
-	//cv::BriefDescriptorExtractor extractor;
+    	int celly = i / gridCols_;
+        int cellx = i - celly * gridCols_;
+
+        // sort of slicing as python
+        cv::Range row_range((celly*master_mat.rows)/gridRows_, ((celly+1)*master_mat.rows)/gridRows_);
+        cv::Range col_range((cellx*master_mat.cols)/gridCols_, ((cellx+1)*master_mat.cols)/gridCols_);
+    
+        cv::Mat sub_image_master = master_mat(row_range, col_range);
+        cv::Mat sub_image_slave = slave_mat(row_range, col_range);
+
+
+        std::vector<cv::KeyPoint> sub_keypoints1;
+        //alloco lo spazio di memoria
+        sub_keypoints1.reserve(maxPerCell_);
+        std::vector<cv::KeyPoint> sub_keypoints2;
+        //alloco lo spazio di memoria
+        sub_keypoints2.reserve(maxPerCell_);
+        //searching for Key Points in both sub-images
+        m_detector->detect(sub_image_master, sub_keypoints1);
+   		m_detector->detect(sub_image_slave, sub_keypoints2);
+   		//moving from single cell to overall image 
+   		std::vector<cv::KeyPoint>::iterator it = sub_keypoints1.begin(),
+                                                end = sub_keypoints1.end();
+            for( ; it != end; ++it )
+            {
+                it->pt.x += col_range.start;
+                it->pt.y += row_range.start;
+            }
+
+   		std::vector<cv::KeyPoint>::iterator it2 = sub_keypoints2.begin(),
+                                                end2 = sub_keypoints2.end();
+            for( ; it2 != end2; ++it2 )
+            {
+                it2->pt.x += col_range.start;
+                it2->pt.y += row_range.start;
+            }   
+        //
+        keypoints1.insert( keypoints1.end(), sub_keypoints1.begin(), sub_keypoints1.end() );
+        keypoints2.insert( keypoints2.end(), sub_keypoints2.begin(), sub_keypoints2.end() ); 
+
+        cout << "grid cell " << cellx << ' ' << celly <<endl;     
+    }
+    
+    
+
+    for (int i = 0; i < maxTotalKeypoints; i++)
+    {
+   		double xKP1 = keypoints1[i].pt.x;
+    	double yKP1 = keypoints1[i].pt.y;
+    	double xKP2 = keypoints2[i].pt.x;
+    	double yKP2 = keypoints2[i].pt.y;
+    	cout << " xKP1 "  << xKP1 << " yKP1 " << yKP1 << " xKP2 " << xKP2 << " yKP2 " << yKP2 << endl;
+	}
+
+
+    cerr << "Features found = " << keypoints1.size() << " master " << keypoints2.size() << " slave " << endl;
+
+    // Computing descriptors
+    //cv::BriefDescriptorExtractor extractor;
     cv::Ptr<cv::xfeatures2d::BriefDescriptorExtractor> extractor =cv::xfeatures2d::BriefDescriptorExtractor::create ( );
 
-	cv::Mat descriptors1, descriptors2;
-	/*extractor.compute(master_mat, keypoints1, descriptors1);
-	extractor.compute(slave_mat, keypoints2, descriptors2);*/
+    cv::Mat descriptors1, descriptors2;
+    /*extractor.compute(master_mat, keypoints1, descriptors1);
+    extractor.compute(slave_mat, keypoints2, descriptors2);*/
     extractor->compute(master_mat, keypoints1, descriptors1);
     extractor->compute(slave_mat, keypoints2, descriptors2);
 
-	// Matching descriptors
-	cv::BFMatcher matcher(cv::NORM_L2);
+
+    // Matching descriptors
+    cv::BFMatcher matcher(cv::NORM_L2);
     vector<cv::DMatch> matches;
-	matcher.match(descriptors1, descriptors2, matches);	
+    matcher.match(descriptors1, descriptors2, matches);	
 
-    cerr << matches.size() << endl;
+    cerr << "matches " << matches.size() << endl;
 
-/*    //HARRIS corner detector
-
-    int thresh = 200;
-
-    cv::Mat dst, dst_slave, dst_norm, dst_norm_scaled;
-    //dst = cv::Mat::zeros( master_mat.size(), CV_32FC1 );
-    //dst_slave = cv::Mat::zeros( master_mat.size(), CV_32FC1 );
-
-    // Detector parameters
-    int blockSize = 3;  //block dimension
-    int apertureSize = 9;
-    double k = 0.04;
-
-    // Detecting corners
-    cornerHarris( master_mat, dst, blockSize, apertureSize, k, cv::BORDER_DEFAULT );
-    cornerHarris( slave_mat, dst_slave, blockSize, apertureSize, k, cv::BORDER_DEFAULT );
-
-    // Normalizing
-    normalize( dst, dst_norm, 0, 255, cv::NORM_MINMAX, CV_32FC1, cv::Mat() );
-    convertScaleAbs( dst_norm, dst_norm_scaled );
-
-    // Drawing a circle around corners
-    for( int j = 0; j < dst_norm.rows ; j++ )
-       { for( int i = 0; i < dst_norm.cols; i++ )
-            {
-              if( (int) dst_norm.at<float>(j,i) > thresh )
-                {
-                 circle( dst_norm_scaled, cv::Point( i, j ), 5,  cv::Scalar(0), 2, 8, 0 );
-                }
-            }
-       }
-
-    // Showing the result
-    cv::namedWindow( "Prova_harris_master", cv::WINDOW_NORMAL );
-    cv::imshow( "Prova_harris_master", dst);
-    // Showing the result
-    cv::namedWindow( "Prova_harris_slave", cv::WINDOW_NORMAL );
-    cv::imshow( "Prova_harris_slave", dst_slave);
-
-    cv::resize(dst_slave, dst_slave, dst.size());
-    cv::Mat product = dst.mul(dst_slave);
-
-    cv::namedWindow( "Prova_harris_product", cv::WINDOW_NORMAL );
-    cv::imshow( "Prova_harris_product", product);
-
-*/
-
-
-// *****************TEMPLATE MATCHING***************************************************
-/*
-
-    // Template window on master image
-    int n = master_mat.cols;
-    int m = master_mat.rows;
-
-    cout << n << " colonne\t" << m << " righe" << endl;
-
-    int n_rows = 10;
-    int n_cols = 10;
-    int centerX_master = n/(n_cols+1);  // ottengo quanto devono distare i vari centri della griglia sulla master
-    int centerY_master = m/(n_rows+1);
-    int centerX_slave = n/(n_rows+1);  // ottengo quanto devono distare i vari centri della griglia sulla slave
-    int centerY_slave = m/(n_cols+1);
-
-    int NewcenterX_master = centerX_master;
-    int NewcenterY_master = centerY_master;
-    int NewcenterX_slave = centerX_slave;
-    int NewcenterY_slave = centerY_slave;
-
-    cout << centerX_master << " x del punto\t" <<  centerY_master << " y del punto" << endl;
-
-    cv::Mat templ, research, research_display, result;
-
-    int height_templ = 25;
-    int width_templ = 25;
-    int height_research = 50;
-    int width_research = 50;
-
-    // Localizing the best match with minMaxLoc
-    double minVal; double maxVal; cv::Point minLoc; cv::Point maxLoc;
-
-    //Create and write the log file
-    ofstream templ_match("Template_matching_cycles.txt");
-
-
-    cv::Mat corr_values(n_rows*n_cols,5, CV_64F);
-    cout <<"Inizio ciclo FOR" << endl;
-    for (int i = 0; i < n_rows; i++) // rows
-    {
-        for (int j = 0; j < n_cols; j++) // cols
-        {
-            cv::Rect rect_master = cv::Rect(NewcenterX_master - (width_templ/2) , NewcenterY_master - (height_templ/2), width_templ , height_templ); // (left corner.x, left corner.y, width, height)
-            templ = master_mat(rect_master); // template window on master image grande rect
-
-            cv::Rect rect_slave = cv::Rect(NewcenterX_slave - (width_research/2) , NewcenterY_slave - (height_research/2), width_research , height_research); // (left corner.x, left corner.y, width, height)
-            research = slave_mat(rect_slave); // template window on slave image grande rect
-
-            templ_match << i << " i cycle" << endl
-                        << j << " j cycle" << endl
-                        << "(" << NewcenterX_master << "," << NewcenterY_master << ")" << " X, Y template window center coordinates " << endl
-                        << "(" << NewcenterX_master - (width_templ/2) << "," << NewcenterY_master - (height_templ/2) << ")" << " X, Y template window left corner coordinates " << endl
-                        << "(" << NewcenterX_slave << "," << NewcenterY_slave << ")" << " X, Y research window center coordinates " << endl
-                        << "(" << NewcenterX_slave - (width_research/2) << "," << NewcenterY_slave - (height_research/2) << ")" << " X, Y research window left corner coordinates " << endl << endl;
-
-            // Source image to display the rectangle
-            research.copyTo( research_display ); //Copy of the slave patch to draw a rectangle
-
-            // Conversion from 32 to 8 bit image
-            double minVal_research, maxVal_research, minVal_templ, maxVal_templ;
-
-            minMaxLoc( master_mat, &minVal_research, &maxVal_research );
-            minMaxLoc( slave_mat, &minVal_templ, &maxVal_templ );
-
-            cv::Mat research_display_8U;
-            cv::Mat templ_8U;
-
-            research.convertTo(research_display_8U, CV_8UC1, 255.0/(maxVal_research - minVal_research), -minVal_research*255.0/(maxVal_research - minVal_research));
-            templ.convertTo   (templ_8U, CV_8UC1, 255.0/(maxVal_templ - minVal_templ), -minVal_templ*255.0/(maxVal_templ - minVal_templ));
-
-            // Do the Matching and Normalize
-            cv::matchTemplate( research_display_8U, templ_8U, result,  CV_TM_CCORR_NORMED );
-            //cv::normalize( result, result, 0, 1, cv::NORM_MINMAX, -1, cv::Mat() );
-
-            minMaxLoc( result, &minVal, &maxVal, &minLoc, &maxLoc, cv::Mat() );
-
-            cv::Point corner_window = cv::Point( maxLoc.x + (width_templ/2) , maxLoc.y + (height_templ/2)); // coordinate del punto di massima correlazione rispetto allo spigolo della research window
-            cv::Point corner_slave = cv::Point(corner_window.x + NewcenterX_slave - (width_research/2), corner_window.y + NewcenterY_slave - (height_research/2)); // coordinate del punto di massima correlazione rispetto allo spigolo della slave
-            cv::Point corner_master = cv::Point(NewcenterX_master, NewcenterY_master ); // coordinate del punto di massima correlazione rispetto allo spigolo della master
-
-            corr_values.at<double>(j+i*n_rows,0) = corner_master.x;
-            corr_values.at<double>(j+i*n_rows,1) = corner_master.y;
-            corr_values.at<double>(j+i*n_rows,2) = corner_slave.x;
-            corr_values.at<double>(j+i*n_rows,3) = corner_slave.y;
-            corr_values.at<double>(j+i*n_rows,4) = maxVal;
-
-            cv::namedWindow("Template image", cv::WINDOW_NORMAL);
-            cv::imshow("Template image", templ );
-            cv::namedWindow("Research image", cv::WINDOW_NORMAL);
-            cv::imshow("Research image", research );
-
-            // Show me what you got
-            rectangle( research_display, maxLoc, cv::Point( maxLoc.x + templ.cols , maxLoc.y + templ.rows ), cv::Scalar::all(0), 2, 8, 0 );
-            rectangle( result, cv::Point( maxLoc.x - 0.5*templ.cols , maxLoc.y - 0.5*templ.rows ), cv::Point( maxLoc.x + 0.5*templ.cols , maxLoc.y + 0.5*templ.rows ), cv::Scalar::all(0), 2, 8, 0 );
-
-            cv::namedWindow("Source image", cv::WINDOW_NORMAL);
-            cv::imshow( "Source image", research_display );
-
-            cv::namedWindow("Result window", cv::WINDOW_NORMAL);
-            cv::imshow( "Result window", result );
-
-            NewcenterX_master += centerX_master;
-            NewcenterX_slave += centerX_slave;
-        }
-
-
-        NewcenterY_master += centerY_master;
-        NewcenterX_master = centerX_master;
-
-        NewcenterY_slave += centerY_slave;
-        NewcenterX_slave = centerX_slave;
-    }
-
-    templ_match << "Stampa matrice intera " <<endl;
-    templ_match << "Matrix\n " << corr_values << endl << endl;
-    templ_match.close();
-
-    cv::waitKey(0);
-*/
-
-
-	// Calculation of max and min distances between keypoints 
+    // Calculation of max and min distances between keypoints 
     double max_dist = matches[0].distance; double min_dist = matches[0].distance;
     cout << "max dist" << max_dist << endl;
     cout << "min dist" << min_dist << endl;
 
-	for( int i = 1; i < descriptors1.rows; i++ )
-	{ 
+    for( int i = 1; i < descriptors1.rows; i++ )
+    {
         double dist = matches[i].distance;
-        //cout << "dist" << dist << endl;
-		if( dist < min_dist ) min_dist = dist;
-		if( dist > max_dist ) max_dist = dist;
-	}
-	
-	//cout << "Min dist between keypoints = " << min_dist << endl;
-	//cout << "Max dist between keypoints = " << max_dist << endl;
-		
-	// Selection of the better 1% descriptors 
-	int N_TOT = descriptors1.rows;
-	int N_GOOD = 0, N_ITER = 0;
+        if( dist < min_dist ) min_dist = dist;
+        if( dist > max_dist ) max_dist = dist;
+    }
 
-    double good_dist = (max_dist + min_dist) /2.0;
-	double per = 100;
-	 
+    cout << "Min dist between keypoints = " << min_dist << endl;
+    cout << "Max dist between keypoints = " << max_dist << endl;
+
+    // Selection of the better 2% descriptors
+    int N_TOT = descriptors1.rows;
+    int N_GOOD = 0, N_ITER = 0;
+
+    double good_dist = (max_dist+min_dist)/2.0;
+    double per = 100;
+    cerr << "good_dist 2 " << good_dist << endl;
     while (fabs(per-0.98) > 0.001 && N_ITER <= 200)
-	{		
-		for( int i = 0; i < descriptors1.rows; i++ )
-		{
+    {
+        for( int i = 0; i < descriptors1.rows; i++ )
+        {
             if(matches[i].distance <= good_dist) N_GOOD++;
-		}	
-		
-		per = (double)N_GOOD/(double)N_TOT;
-		
-        if(per >= 0.98) //if(per >= 0.01)
-		{
-			max_dist = good_dist;
-		}
-		else
-		{
-		    min_dist = good_dist;
-		}
-		
-        good_dist = (max_dist + min_dist)/2.0;
-		
-		//cout<< per << " " << min_dist << " " << max_dist << " "<< good_dist <<endl;
-		
-		N_ITER++;
-		N_GOOD = 0;
-	} 
-	
-	// Error computation
-	//boost::accumulators::accumulator_set<double, boost::accumulators::stats<boost::accumulators::tag::mean, boost::accumulators::tag::median, boost::accumulators::tag::variance> > acc_x;
-	//boost::accumulators::accumulator_set<double, boost::accumulators::stats<boost::accumulators::tag::mean, boost::accumulators::tag::median, boost::accumulators::tag::variance> > acc_y;
-	
-	for( int i = 0; i < descriptors1.rows; i++ )
-	{
+        }
+
+        per = (double)N_GOOD/(double)N_TOT;
+
+        if(per >= 0.98)
+        {
+            max_dist = good_dist;
+        }
+        else
+        {
+            min_dist = good_dist;
+        }
+
+        good_dist = (max_dist+min_dist)/2.0;
+
+        //cout<< per << " " << min_dist << " " << max_dist << " "<< good_dist <<endl;
+
+        N_ITER++;
+        N_GOOD = 0;
+    }
+    cerr << "good_dist 3 " << good_dist << endl;
+    for( int i = 0; i < descriptors1.rows; i++ )
+    {
         if(matches[i].distance <= good_dist)
-		{ 
-			// Parallax computation
+        {
+            // Parallax computation
             double px = keypoints1[i].pt.x - keypoints2[matches[i].trainIdx].pt.x;
-            double py = keypoints1[i].pt.y - keypoints2[matches[i].trainIdx].pt.y;
-			
-            if(fabs(py) <  10)
-			{
+            double py = keypoints1[i].pt.y - keypoints2[matches[i].trainIdx].pt.y;	
+
+            if(fabs(py) <  20)
+            {
                 good_matches.push_back(matches[i]);
 
-				//acc_x(px);
-				//acc_y(py);
-		        
-				//cout << i << " " << px << " " << " " << py << " "<<endl;	
-			}
-		}
-	}
-	
-	//cout << "% points found = " << (double)good_matches.size()/(double)matches.size() << endl;
-	cout << endl << "Points found before the 3 sigma test = " << (double)good_matches.size() <<endl << endl; 
-	
-	// 3 sigma test
-	cout << "3 SIGMA TEST " << endl;			 
-	int control = 0;
-	int num_iter = 0;
-	
-	do
-	{
-		num_iter ++;
-		cout << "Iteration n = " << num_iter << endl;
-		control = 0;
-  
-		cv::Mat parallax = cv::Mat::zeros(good_matches.size(), 1, CV_64F);
-		for(size_t i = 0; i < good_matches.size(); i++)
-		{
-			parallax.at<double>(i,0) = keypoints1[good_matches[i].queryIdx].pt.y - keypoints2[good_matches[i].trainIdx].pt.y; 	
-		}		
-		cv::Scalar mean_parallax, stDev_parallax;
-		cv::meanStdDev(parallax, mean_parallax, stDev_parallax);
-		
-		double dev_y = stDev_parallax.val[0]; 	
-		double mean_diff_y = mean_parallax.val[0]; 
-		
-		cout << "dev_y = " << dev_y << endl
-	         << "mean_diff_y = " << mean_diff_y << endl;
-    		   		
-		vector<cv::DMatch > good_matches_corr;
-		
-		// Get the keypoints from the good_matches
-		for (size_t i = 0; i < good_matches.size(); i++)
-		{	
-        	double py = keypoints1[good_matches[i].queryIdx].pt.y - keypoints2[good_matches[i].trainIdx].pt.y;
-			
-			if (py< 3*dev_y+mean_diff_y && py > -3*dev_y+mean_diff_y)        
-			{
-				good_matches_corr.push_back(good_matches[i]);
-			}
-			else //find outlier 
-			{
-				control = 10;
-			}
-		}	
-		good_matches = good_matches_corr;
-	}
-	while(control !=0);
-	cout << endl << "Good points found after the 3 sigma test = " << (double)good_matches.size() <<endl << endl; 
-}
+                //acc_x(px);
+                //acc_y(py);
 
+                //cout << i << " " << px << " " << " " << py << " "<<endl;	
+            }
+        }
+    }
+    cout << "good " << (double)good_matches.size() << " matches " << (double)matches.size() << endl;
+    cout << "% points found = " << ((double)good_matches.size()/(double)matches.size())*100.0 << endl;
+    cout << endl << "Points found before the 3 sigma test = " << (double)good_matches.size() <<endl << endl; 
+
+    // 3 sigma test
+    cout << "3 SIGMA TEST " << endl;
+    int control = 0;
+    int num_iter = 0;
+
+    do
+    {
+        num_iter ++;
+        cout << "Iteration n = " << num_iter << endl;
+        control = 0;
+
+        cv::Mat parallax = cv::Mat::zeros(good_matches.size(), 1, CV_64F);
+        for(size_t i = 0; i < good_matches.size(); i++)
+        {
+            parallax.at<double>(i,0) = keypoints1[good_matches[i].queryIdx].pt.y - keypoints2[good_matches[i].trainIdx].pt.y; 	
+        }
+        cv::Scalar mean_parallax, stDev_parallax;
+        cv::meanStdDev(parallax, mean_parallax, stDev_parallax);
+
+        double dev_y = stDev_parallax.val[0]; 	
+        double mean_diff_y = mean_parallax.val[0]; 
+
+        cout << "dev_y = " << dev_y << endl
+             << "mean_diff_y = " << mean_diff_y << endl;
+
+
+        vector<cv::DMatch > good_matches_corr;
+
+        // Get the keypoints from the good_matches
+        for (size_t i = 0; i < good_matches.size(); i++)
+        {
+            double py = keypoints1[good_matches[i].queryIdx].pt.y - keypoints2[good_matches[i].trainIdx].pt.y;
+
+            if (py< 3*dev_y+mean_diff_y && py > -3*dev_y+mean_diff_y)        
+            {
+                good_matches_corr.push_back(good_matches[i]);
+            }
+            else //find outlier 
+            {
+                control = 10;
+            }
+        }
+        good_matches = good_matches_corr;
+    }
+    while(control !=0);
+    cout << endl << "Good points found after the 3 sigma test = " << (double)good_matches.size() <<endl << endl; 
+}
 
 void ossimOpenCvTPgenerator::TPdraw()
 {
     /*cv::Mat filt_master, filt_slave;
-    cv::Ptr<cv::CLAHE> filtro = cv::createCLAHE(8.0); //threshold for contrast limiting
+    cv::Ptr<cv::CLAHE> filtro = cv::createCLAHE(3.0);
     filtro->apply(master_mat, filt_master);
     filtro->apply(slave_mat, filt_slave);*/
 
@@ -399,7 +314,7 @@ void ossimOpenCvTPgenerator::TPdraw()
     cv::Mat img_matches;
     cv::drawMatches(master_mat, keypoints1, slave_mat, keypoints2,
                good_matches, img_matches, cv::Scalar::all(-1), cv::Scalar::all(-1),
-               vector<char>(), cv::DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
+               vector<char>(), cv::DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS );
 
     cv::resize(img_matches, img_matches, cv::Size(), 1.0/1.0, 1.0/1.0, cv::INTER_AREA);
 
@@ -409,75 +324,56 @@ void ossimOpenCvTPgenerator::TPdraw()
     cv::waitKey(0);
 }
 
-
-cv::Mat ossimOpenCvTPgenerator::warp(cv::Mat slave_16bit)
+bool ossimOpenCvTPgenerator::TPwarp()
 {
-    vector<cv::Point2f> aff_match1, aff_match2;
-	// Get the keypoints from the good_matches
-	for (unsigned int i = 0; i < good_matches.size(); ++i)
-	{	
-		cv::Point2f pt1 = keypoints1[good_matches[i].queryIdx].pt;
-		cv::Point2f pt2 = keypoints2[good_matches[i].trainIdx].pt;
-		aff_match1.push_back(pt1);
-		aff_match2.push_back(pt2);
-		//printf("%3d pt1: (%.2f, %.2f) pt2: (%.2f, %.2f)\n", i, pt1.x, pt1.y, pt2.x, pt2.y);
-	}
+    std::vector<cv::Point2f> aff_match1, aff_match2;
+    // Get the keypoints from the good_matches
+    for (unsigned int i = 0; i < good_matches.size(); ++i)
+    {
+        cv::Point2f pt1 = keypoints1[good_matches[i].queryIdx].pt;
+        cv::Point2f pt2 = keypoints2[good_matches[i].trainIdx].pt;
+        aff_match1.push_back(pt1);
+        aff_match2.push_back(pt2);
+        //printf("%3d pt1: (%.2f, %.2f) pt2: (%.2f, %.2f)\n", i, pt1.x, pt1.y, pt2.x, pt2.y);
+    }
 
-//************************************* Inserisci punti collimati a mano su master e slave native
-/*    vector<cv::Point2f> pippo1, pippo2;
-
-    pippo2.push_back(cv::Point2f(186.0, 109.0)); //slave
-    pippo2.push_back(cv::Point2f(217.0, 231.0));
-    pippo2.push_back(cv::Point2f(321.0, 274.0));
-    pippo2.push_back(cv::Point2f(541.0, 180.0));
-    pippo2.push_back(cv::Point2f(551.0, 72.0));
-    pippo2.push_back(cv::Point2f(721.0, 327.0));
-    pippo2.push_back(cv::Point2f(426.0, 511.0));
-    pippo2.push_back(cv::Point2f(226.0, 829.0));
-    pippo2.push_back(cv::Point2f(797.0, 297.0));
-    pippo2.push_back(cv::Point2f(62.0, 793.0));
-
-    pippo1.push_back(cv::Point2f(165.0, 105.0)); //master
-    pippo1.push_back(cv::Point2f(195.0, 226.0));
-    pippo1.push_back(cv::Point2f(301.0, 269.0));
-    pippo1.push_back(cv::Point2f(524.0, 173.0));
-    pippo1.push_back(cv::Point2f(543.0, 70.0));
-    pippo1.push_back(cv::Point2f(709.0, 324.0));
-    pippo1.push_back(cv::Point2f(425.0, 510.0));
-    pippo1.push_back(cv::Point2f(223.0, 829.0));
-    pippo1.push_back(cv::Point2f(797.0, 296.0));
-    pippo1.push_back(cv::Point2f(39.0, 789.0));
-*/
-//***************************************  prova per controllare che il modello sia buono
-
-    //cv::Mat rot_matrix = estRT(pippo2, pippo1);
-
-
-	// Estimate quasi-epipolar transformation model 
+    // Estimate quasi-epipolar transformation model 
     cv::Mat rot_matrix = estRT(aff_match2, aff_match1);
-	
-	//cout << "Rotation matrix" << endl;
-	//cout << rot_matrix << endl;
- 
+    cout << "matrice di rotazione " << rot_matrix << endl;
+
     // Set the destination image the same type and size as source
-	cv::Mat warp_dst = cv::Mat::zeros(master_mat.rows, master_mat.cols, master_mat.type());
-	cv::Mat warp_dst_16bit = cv::Mat::zeros(slave_16bit.rows, slave_16bit.cols, slave_16bit.type());
-	
-	cv::warpAffine(slave_mat, warp_dst, rot_matrix, warp_dst.size());
-	cv::warpAffine(slave_16bit, warp_dst_16bit, rot_matrix, warp_dst.size());
-    
+    cv::Mat warp_dst = cv::Mat::zeros(master_mat.rows, master_mat.cols, master_mat.type());
+    //cv::Mat warp_dst_16bit = cv::Mat::zeros(slave_16bit.rows, slave_16bit.cols, slave_16bit.type());
+
+    //cout << "Warp pre" << warp_dst << endl;
+
+    cv::warpAffine(slave_mat, warp_dst, rot_matrix, warp_dst.size());
+    // perchè rot_matrix non ha tx nulla?
+    //cv::warpAffine(slave_16bit, warp_dst_16bit, rot_matrix, warp_dst.size());
+
+    //cout << "Warp post" << warp_dst << endl;
+
     //cv::namedWindow("Master image", cv::WINDOW_NORMAL);
     //cv::imshow("Master image", master_mat );
-	cv::imwrite("Master_8bit.tif",  master_mat);
+    cv::imwrite("Master_8bit.tif",  master_mat);
 
     //cv::namedWindow("Warped image", cv::WINDOW_NORMAL);
     //cv::imshow("Warped image", warp_dst );
-	cv::imwrite("Slave_8bit.tif",  warp_dst);
-	
-	//cv::waitKey(0);
-    
-	return warp_dst;
-}	
+    cv::imwrite("Slave_8bit.tif",  warp_dst);
+
+    //slave_mat_warp = warp_dst;
+    slave_mat_warp = slave_mat; // for SAR or images with RPC bias-corrected
+    //cv::waitKey(0);
+
+    return true;
+}
+
+
+cv::Mat ossimOpenCvTPgenerator::getWarpedImage()
+{
+    return slave_mat_warp;
+}
+
 
 cv::Mat ossimOpenCvTPgenerator::estRT(std::vector<cv::Point2f> master, std::vector<cv::Point2f> slave)
 {
@@ -630,10 +526,8 @@ cv::Mat ossimOpenCvTPgenerator::estRT(std::vector<cv::Point2f> master, std::vect
     cv::solve(A, B, result, cv::DECOMP_SVD);
     cv::Mat trX;
     cv::transpose(result, trX);
-
     cout << "Result matrix "<< endl;
     cout << trX << endl << endl;
-
     cout << "Difference " << endl;
     cout << A*result-B << endl;
 
