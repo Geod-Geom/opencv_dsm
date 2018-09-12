@@ -54,7 +54,7 @@ In order to compile and install this OSSIM plug-In, please observe the following
 
 	10. From the “build” folder, run DATE:
 	./bin/ossim-dsm-app input_images.txt absolute_path_to_results_folder DSM_name
-	--cut-bbox-ll lat_min lon_min lat_max lon_max --meters xx --nsteps xx --projection utm --SGBM-Par ndisparities minimumDisp    		SADWindowSize
+	--cut-bbox-ll lat_min lon_min lat_max lon_max --meters xx --nsteps xx --projection utm --SGBM-Par ndisparities minimumDisp SADWindowSize
 	
 	
 Here https://trac.osgeo.org/ossim/wiki/ACompletePhotogrammetricOSSIMtoolForAutomaticDSMenerationUsingMultiViewOpticalAndSARimages 
