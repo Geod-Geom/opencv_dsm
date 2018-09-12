@@ -30,10 +30,10 @@ ossimOpenCvDisparityMapGenerator::ossimOpenCvDisparityMapGenerator()
 }
 
 //void ossimOpenCvDisparityMapGenerator::execute(cv::Mat master_mat, cv::Mat slave_mat, ossimStereoPair StereoPair, int rows, int cols, double currentRes)
-void ossimOpenCvDisparityMapGenerator::execute(cv::Mat master_mat, cv::Mat slave_mat, ossimStereoPair StereoPair, int rows, int cols, double currentRes, ossimImageHandler* master_handler)
+void ossimOpenCvDisparityMapGenerator::execute(cv::Mat master_mat, cv::Mat slave_mat, ossimStereoPair StereoPair, int rows, int cols, double currentRes, ossimImageHandler* master_handler, int ndisparities, int minimumDisp, int SADWindowSize)
 {
 	cout << "DISPARITY MAP GENERATION \t in progress..." << endl;
-		
+	
 	//******************************************************
 	// Abilitate for computing disparity on different scales 
 	//******************************************************
@@ -47,10 +47,11 @@ void ossimOpenCvDisparityMapGenerator::execute(cv::Mat master_mat, cv::Mat slave
 	cv::imshow( "Scaled slave", slave_mat);
 	*/	
 
+
     // esporre parametri o trovare un modo per rendere i parametri automatici
-    ndisparities = 64; //Maximum disparity minus minimum disparity - prove a 128  64
-    minimumDisp = -16; //prova a    -16
-    SADWindowSize = 5; //Matched block size
+    //ndisparities = 64; //Maximum disparity minus minimum disparity - prove a 128  64
+    //minimumDisp = -16; //prova a    -16
+    //SADWindowSize = 5; //Matched block size
 
     // Disparity Map generation
     int cn = master_mat.channels();
@@ -68,6 +69,7 @@ void ossimOpenCvDisparityMapGenerator::execute(cv::Mat master_mat, cv::Mat slave
     sgbm.speckleRange = 1;
     sgbm.disp12MaxDiff = 1; // Maximum allowed difference (in integer pixel units) in the left-right disparity check
     //sgbm.fullDP = true; //activate for consider 8 directions (Hirschmuller algorithm) instead of 5;*/
+    cout << ndisparities << " " << minimumDisp <<" "<< SADWindowSize << " function parameters " << endl<<endl;
 
     cv::Ptr<cv::StereoSGBM> sgbm = cv::StereoSGBM::create(minimumDisp, ndisparities, SADWindowSize);
     sgbm->setPreFilterCap(63);

@@ -63,7 +63,14 @@ static const std::string METERS_KW               = "meters";
 static const std::string OP_KW                   = "operation";
 static const std::string RESAMPLER_FILTER_KW     = "resampler_filter";
 static const std::string PROJECTION_KW           = "projection";
-static const std::string INPUT_NB_KW           = "input";
+static const std::string INPUT_NB_KW             = "input";
+//the following ones have to be checked
+static const std::string SGM_NDISP               = "ndisparities";
+static const std::string SGM_MINDISP             = "mindisparity";
+static const std::string SGM_SAD_WINDOW_SIZE     = "SADWindowSize";
+
+
+
 
 ossimImageHandler* raw_image_handler;
 
@@ -289,8 +296,13 @@ int main(int argc,  char* argv[])
             cout << "Options:" << endl;
             cout << "--cut-bbox-ll <min_lat> <min_lon> <max_lat> <max_lon> \t Specify a bounding box with the minimum"   << endl;
             cout << "\t\t\t\t\t\t\tlatitude/longitude and max latitude/longitude" << endl;
-            cout << "\t\t\t\t\t\t\tin decimal degrees." << endl;
-            cout << "--meters <meters> \t\t\t\t\t Specify a size (in meters) for a resampling"   << endl<< endl;
+            cout << "\t\t\t\t\t\t\tin decimal degrees." << endl <<endl;
+            cout << "--meters <meters> \t\t\t\t\t Specify a size (in meters) for a resampling."   << endl<<endl;
+            cout << "--projection <projection> \t\t\t\t Specify the map projection." <<endl<<endl; 
+            cout << "--SGBM-Par <ndisparities> <minimumDisp> <SADWindowSize>   Specify the SGBM Parameters." << endl;
+            cout << "\t\t\t ndisparities = maximum disparity minus minimum disparity; it must be divisible by 16" << endl;
+            cout << "\t\t\t minimumDisp = minimum possible disparity value" << endl;
+            cout << "\t\t\t SADWindowSize = matched block size" << endl << endl;
             throw ossimException(errMsg);
         }
 
@@ -309,6 +321,7 @@ int main(int argc,  char* argv[])
         double lon_max;
         double MinHeight;
         double MaxHeight;
+        int ndisparities, minimumDisp, SADWindowSize;  
 
         /**********************************************/
         /**********************************************/
@@ -344,6 +357,10 @@ int main(int argc,  char* argv[])
                                     <<"\t\tLat_max = " << lat_max << endl
                                     <<"\t\tLon_max = " << lon_max << endl << endl;
 
+            ossimElevManager::instance()->print(cout);
+            cout << "hello" << endl;
+            
+            
             /********** MIN and MAX HEIGHT COMPUTATION *********/
             std::vector<ossim_float64> HeightAboveMSL;
             for(double lat = lat_min; lat < lat_max; lat += 0.001)
@@ -361,6 +378,24 @@ int main(int argc,  char* argv[])
             cout << "Min height for this tile is " << std::setprecision(6) << MinHeight << " m" << endl;
             cout << "Max height for this tile is " << std::setprecision(6) << MaxHeight << " m" << endl << endl;
         }
+
+        /****** Semi-Global Block Matching Parameters ******/
+        if (ap.read("--SGBM-Par", stringParam1, stringParam2, stringParam3))
+        {
+            image_key.addPair(SGM_NDISP, tempString1);
+            image_key.addPair(SGM_MINDISP, tempString2);
+            image_key.addPair(SGM_SAD_WINDOW_SIZE, tempString3);
+       
+            ndisparities = atoi(tempString1.c_str());
+            minimumDisp = atoi(tempString2.c_str());
+            SADWindowSize = atoi(tempString3.c_str());
+            
+            cout << "Semi-Global Block Matching Parameters: " << "\t\t ndisparities = "<< ndisparities << endl
+                                    <<"\t\t\t\t\t\t minimumDisp = " << minimumDisp << endl
+                                    <<"\t\t\t\t\t\t SADWindowSize = " << SADWindowSize << endl<<endl;
+
+        }     
+
 
         /****************************************/
         /************ UTM projection ************/
@@ -626,7 +661,7 @@ int main(int argc,  char* argv[])
             //StereoPairList[i].getOrthoSlavePath();
 
             ossimDispMerging *mergedDisp = new ossimDispMerging() ;
-            mergedDisp->execute(StereoPairList, orthoListMask, imageList, orthoRes); // da qui voglio ottenere mappa di disparità fusa e metrica
+            mergedDisp->execute(StereoPairList, orthoListMask, imageList, orthoRes, ndisparities, minimumDisp, SADWindowSize); // da qui voglio ottenere mappa di disparità fusa e metrica
             cv::Mat FinalDisparity = mergedDisp->getMergedDisparity(); // questa è mappa di disparità fusa e metrica
 
             // Qui voglio sommare alla mappa di disparità fusa e metrica il dsm coarse

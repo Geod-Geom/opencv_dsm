@@ -30,7 +30,7 @@ ossimDispMerging::ossimDispMerging()
 }
 
 
-bool ossimDispMerging::execute(vector<ossimStereoPair> StereoPairList, vector<ossimString> orthoListMask, vector<ossimRawImage> imageList, double currentRes)
+bool ossimDispMerging::execute(vector<ossimStereoPair> StereoPairList, vector<ossimString> orthoListMask, vector<ossimRawImage> imageList, double currentRes, int ndisparities, int minimumDisp, int SADWindowSize)
 {
     /*cout << endl << "ortho master path "<<StereoPairList[0].getOrthoMasterPath() << endl << endl;
     cout << "ortho slave path " <<StereoPairList[0].getOrthoSlavePath() << endl << endl;
@@ -85,11 +85,11 @@ bool ossimDispMerging::execute(vector<ossimStereoPair> StereoPairList, vector<os
 
         // Disparity map generation
         ossimOpenCvDisparityMapGenerator* dense_matcher = new ossimOpenCvDisparityMapGenerator();
-        dense_matcher->execute(master_mat_8U, stereoTP->getWarpedImage(), StereoPairList[i], ortho_rows, ortho_cols, currentRes, master_handler); // dopo questo execute ho disp metrica
+        dense_matcher->execute(master_mat_8U, stereoTP->getWarpedImage(), StereoPairList[i], ortho_rows, ortho_cols, currentRes, master_handler, ndisparities, minimumDisp, SADWindowSize); // dopo questo execute ho disp metrica
 
         // Nel vettore globale di cv::Mat immagazzino tutte le mappe di disparità che genero ad ogni ciclo
         array_metric_disp.push_back(dense_matcher->getDisp());
-        null_disp_threshold = (dense_matcher->minimumDisp)+0.5;
+        null_disp_threshold = (dense_matcher-> minimumDisp)+0.5;
     }
     cv::imwrite( "float_Disparity_bis.tif", array_metric_disp[StereoPairList.size()-1]);
 
