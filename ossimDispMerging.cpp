@@ -89,7 +89,8 @@ bool ossimDispMerging::execute(vector<ossimStereoPair> StereoPairList, vector<os
 
         // Nel vettore globale di cv::Mat immagazzino tutte le mappe di disparità che genero ad ogni ciclo
         array_metric_disp.push_back(dense_matcher->getDisp());
-        null_disp_threshold = (dense_matcher-> minimumDisp)+0.5;
+        null_disp_threshold = minimumDisp+0.5;
+        //null_disp_threshold = (dense_matcher->minimumDisp)+0.5;
     }
     cv::imwrite( "float_Disparity_bis.tif", array_metric_disp[StereoPairList.size()-1]);
 

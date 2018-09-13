@@ -103,6 +103,7 @@ void ossimOpenCvDisparityMapGenerator::execute(cv::Mat master_mat, cv::Mat slave
     cv::namedWindow( "SGM Disparity", cv::WINDOW_NORMAL );
     cv::imshow( "SGM Disparity", array_disp_8U);
     cv::imwrite( "SGM Disparity.tif", array_disp_8U);
+    cv::imwrite("SGM Disparity.png", array_disp_8U);
     cv::waitKey(0);
 
 

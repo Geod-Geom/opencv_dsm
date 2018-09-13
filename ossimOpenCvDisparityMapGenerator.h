@@ -31,7 +31,7 @@ public:
     cv::Mat mergedDisp_array;
     //int ndisparities; //Maximum disparity minus minimum disparity
     //int SADWindowSize; //Matched block size
-    int minimumDisp;
+    //int minimumDisp;
 };
 
 #endif /* #ifndef ossimOpenCvDisparityMapGenerator_HEADER */
