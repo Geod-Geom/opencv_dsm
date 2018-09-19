@@ -68,6 +68,13 @@ bool ossimOpenCvTPgenerator::execute()
     return true;
 }
 
+struct ResponseComparator
+{
+    bool operator() (const cv::KeyPoint& a, const cv::KeyPoint& b)
+    {
+        return std::abs(a.response) > std::abs(b.response);
+    }
+};
 
 void ossimOpenCvTPgenerator::TPgen()
 {
@@ -78,8 +85,8 @@ void ossimOpenCvTPgenerator::TPgen()
     
 
     int maxTotalKeypoints = 500;
-    int gridRows_ = 5;
-    int gridCols_ = 5;
+    int gridRows_ = 1;
+    int gridCols_ = 1;
     int maxPerCell_ = maxTotalKeypoints / (gridRows_ * gridCols_);
 
 
@@ -113,12 +120,19 @@ void ossimOpenCvTPgenerator::TPgen()
         int cellx = i - celly * gridCols_;
 
         // sort of slicing as python
-        cv::Range row_range((celly*master_mat.rows)/gridRows_, ((celly+1)*master_mat.rows)/gridRows_);
-        cv::Range col_range((cellx*master_mat.cols)/gridCols_, ((cellx+1)*master_mat.cols)/gridCols_);
-    
-        cv::Mat sub_image_master = master_mat(row_range, col_range);
-        cv::Mat sub_image_slave = slave_mat(row_range, col_range);
+        cv::Range row_range_master((celly*master_mat.rows)/gridRows_, ((celly+1)*master_mat.rows)/gridRows_);
+        cv::Range col_range_master((cellx*master_mat.cols)/gridCols_, ((cellx+1)*master_mat.cols)/gridCols_);
 
+        cv::Range row_range_slave((celly*slave_mat.rows)/gridRows_, ((celly+1)*slave_mat.rows)/gridRows_);
+        cv::Range col_range_slave((cellx*slave_mat.cols)/gridCols_, ((cellx+1)*slave_mat.cols)/gridCols_);
+    
+        cv::Mat sub_image_master = master_mat(row_range_master, col_range_master);
+        cv::Mat sub_image_slave = slave_mat(row_range_slave, col_range_slave);
+
+        cv::Mat sub_mask_master;
+            if (!mask_master.empty()) sub_mask_master = mask_master(row_range_master, col_range_master);
+        cv::Mat sub_mask_slave;
+            if (!mask_slave.empty()) sub_mask_slave = mask_slave(row_range_slave, col_range_slave);
 
         std::vector<cv::KeyPoint> sub_keypoints1;
         //alloco lo spazio di memoria
@@ -127,23 +141,38 @@ void ossimOpenCvTPgenerator::TPgen()
         //alloco lo spazio di memoria
         sub_keypoints2.reserve(maxPerCell_);
         //searching for Key Points in both sub-images
-        m_detector->detect(sub_image_master, sub_keypoints1);
-   		m_detector->detect(sub_image_slave, sub_keypoints2);
+        m_detector->detect(sub_image_master, sub_keypoints1, sub_mask_master);
+   		m_detector->detect(sub_image_slave, sub_keypoints2, sub_mask_slave);
+
+        if(sub_keypoints1.size() > maxPerCell_)
+            {
+                std::vector<cv::KeyPoint>::iterator nth = sub_keypoints1.begin() + maxPerCell_;
+                std::nth_element(sub_keypoints1.begin(), nth, sub_keypoints1.end(), ResponseComparator());
+                sub_keypoints1.erase( nth, sub_keypoints1.end() );
+            }
+
+        if(sub_keypoints2.size() > maxPerCell_)
+            {
+                std::vector<cv::KeyPoint>::iterator nth = sub_keypoints2.begin() + maxPerCell_;
+                std::nth_element(sub_keypoints2.begin(), nth, sub_keypoints2.end(), ResponseComparator());
+                sub_keypoints2.erase( nth, sub_keypoints2.end() );
+            }
+
    		//moving from single cell to overall image 
    		std::vector<cv::KeyPoint>::iterator it = sub_keypoints1.begin(),
                                                 end = sub_keypoints1.end();
             for( ; it != end; ++it )
             {
-                it->pt.x += col_range.start;
-                it->pt.y += row_range.start;
+                it->pt.x += col_range_master.start;
+                it->pt.y += row_range_master.start;
             }
 
    		std::vector<cv::KeyPoint>::iterator it2 = sub_keypoints2.begin(),
                                                 end2 = sub_keypoints2.end();
             for( ; it2 != end2; ++it2 )
             {
-                it2->pt.x += col_range.start;
-                it2->pt.y += row_range.start;
+                it2->pt.x += col_range_slave.start;
+                it2->pt.y += row_range_slave.start;
             }   
         //
         keypoints1.insert( keypoints1.end(), sub_keypoints1.begin(), sub_keypoints1.end() );

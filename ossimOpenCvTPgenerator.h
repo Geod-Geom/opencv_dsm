@@ -29,6 +29,7 @@ public:
     ossimOpenCvTPgenerator();
     ossimOpenCvTPgenerator(cv::Mat master, cv::Mat slave);
 
+    bool operator()(const cv::KeyPoint& a, const cv::KeyPoint& b);
     // running command
     bool execute();
     cv::Mat getWarpedImage();
@@ -39,7 +40,7 @@ public:
     cv::Mat estRT(std::vector<cv::Point2f> master, std::vector<cv::Point2f> slave);
     bool TPwarp();
 
-
+    cv::Mat mask_master, mask_slave;
     cv::Mat slave_mat_warp;
     cv::Mat master_mat, slave_mat;
     cv::vector<cv::KeyPoint> keypoints1, keypoints2;
