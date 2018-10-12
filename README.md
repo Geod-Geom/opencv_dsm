@@ -34,6 +34,7 @@ In order to compile and install this OSSIM plug-In, please observe the following
 		ortho_images
 		temp_elevation
 		mask
+		disparity
 	folders.
 	Note that, by now, the mask folder has to contain fake metadata files (mask_name.hdr mask_name.xml mask_name_rpc.txt with the same content of raw images) in order to be able to orthorectify the masks.
 
