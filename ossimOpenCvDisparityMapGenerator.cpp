@@ -23,6 +23,7 @@
 // #include <opencv2/nonfree/features2d.hpp>
 // Note: These are purposely commented out to indicate non-use.
 #include <iostream>
+#include <ossim/base/ossimTimer.h>
 
 ossimOpenCvDisparityMapGenerator::ossimOpenCvDisparityMapGenerator()
 {
@@ -30,10 +31,10 @@ ossimOpenCvDisparityMapGenerator::ossimOpenCvDisparityMapGenerator()
 }
 
 //void ossimOpenCvDisparityMapGenerator::execute(cv::Mat master_mat, cv::Mat slave_mat, ossimStereoPair StereoPair, int rows, int cols, double currentRes)
-void ossimOpenCvDisparityMapGenerator::execute(cv::Mat master_mat, cv::Mat slave_mat, ossimStereoPair StereoPair, int rows, int cols, double currentRes, ossimImageHandler* master_handler, int ndisparities, int minimumDisp, int SADWindowSize)
+void ossimOpenCvDisparityMapGenerator::execute(cv::Mat master_mat, cv::Mat slave_mat, ossimStereoPair StereoPair, int rows, int cols, double currentRes, ossimArgumentParser ap, ossimImageHandler* master_handler, int ndisparities, int minimumDisp, int SADWindowSize, string NS, string nd, string MD, string SAD)
 {
 	cout << "DISPARITY MAP GENERATION \t in progress..." << endl;
-	
+	ossimTimer::instance()->setStartTick();
 	//******************************************************
 	// Abilitate for computing disparity on different scales 
 	//******************************************************
@@ -99,12 +100,24 @@ void ossimOpenCvDisparityMapGenerator::execute(cv::Mat master_mat, cv::Mat slave
 
     minMaxLoc( array_disp, &minVal, &maxVal );
     array_disp.convertTo( array_disp_8U, CV_8UC1, 255/(maxVal - minVal), -minVal*255/(maxVal - minVal));
+    
+    cout << "elapsed time in seconds: " << std::setiosflags(ios::fixed) << std::setprecision(3) << ossimTimer::instance()->time_s() << endl << endl;
+
     cout << "min\t" << minVal << " " << "max\t" << maxVal << endl;
     cv::namedWindow( "SGM Disparity", cv::WINDOW_NORMAL );
     cv::imshow( "SGM Disparity", array_disp_8U);
-    cv::imwrite( "SGM Disparity.tif", array_disp_8U);
     cv::imwrite("SGM Disparity.png", array_disp_8U);
-    cv::waitKey(0);
+    
+    //ossimFilename pathDISP =  ossimFilename(ap[2]) + ossimString("disparity/") ossimFilename(ap[3]) + ossimString("SGM_Disparity_ns_") + NS + ossimString("_nd_") + nd + ossimString("_MD_") + MD + ossimString("_SAD_") + SAD + ossimString(".tif");
+
+    ostringstream convert5, convert6; //// stream used for the conversion
+    convert5 << ap[2];
+    convert6 << ap[3];
+    string path1 = convert5.str();
+    string path2 = convert6.str();
+    cv::imwrite(path1 + "disparity/" + path2 + "_SGM_Disparity_ns_" + NS + "_nd_" + nd + "_MD_" + MD + "_SAD_" + SAD + ".tif", array_disp_8U);
+ 
+    //cv::waitKey(0);
 
 
 	//******************************************************
@@ -203,6 +216,7 @@ void ossimOpenCvDisparityMapGenerator::execute(cv::Mat master_mat, cv::Mat slave
     }
 
     // Create output image chain:
+    ossimFilename pathDISP = ossimFilename(ap[2]) + ossimString("disparity/") + ossimFilename(ap[3]) + ossimString("_Disparity_ns_") + NS + ossimString("_nd_") + nd + ossimString("_MD_") + MD + ossimString("_SAD_") + SAD + ossimString(".TIF");
     ossimImageGeometry* master_geom = master_handler->getImageGeometry().get();
     ossimRefPtr<ossimMemoryImageSource> memSource = new ossimMemoryImageSource;
     memSource->setImage(finalDisparity);
@@ -210,7 +224,7 @@ void ossimOpenCvDisparityMapGenerator::execute(cv::Mat master_mat, cv::Mat slave
     cout << "disparity map size " << master_geom->getImageSize() << endl;
     memSource->saveImageGeometry();
 
-    ossimImageFileWriter* writer = ossimImageWriterFactoryRegistry::instance()->createWriter(ossimFilename("Disparity.TIF"));
+    ossimImageFileWriter* writer = ossimImageWriterFactoryRegistry::instance()->createWriter(pathDISP);
     writer->connectMyInputTo(0, memSource.get());
     writer->execute();
     writer->close();

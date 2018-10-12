@@ -51,11 +51,11 @@ openCVtestclass::openCVtestclass(ossimRefPtr<ossimImageData> master, ossimRefPtr
     
     // Rotation for along-track OPTICAL images
     //********* To be commented for SAR images *********
-    //cv::transpose(master_mat, master_mat);
-    //cv::flip(master_mat, master_mat, 1);
+    /*cv::transpose(master_mat, master_mat);
+    cv::flip(master_mat, master_mat, 1);
     
-    //cv::transpose(slave_mat, slave_mat);
-    //cv::flip(slave_mat, slave_mat, 1);
+    cv::transpose(slave_mat, slave_mat);
+    cv::flip(slave_mat, slave_mat, 1);*/
     //********* To be commented for SAR images *********
 }
 
@@ -322,7 +322,7 @@ cv::Mat openCVtestclass::wallis(cv::Mat image)
     cv::namedWindow("Filtered_image", cv::WINDOW_NORMAL);
     cv::imshow("Filtered_image", Filtered_image );
     
-    cv::waitKey(0); 
+    //cv::waitKey(0); 
     return Filtered_image;
 }
 

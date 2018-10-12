@@ -28,9 +28,9 @@ class ossimDispMerging
 {
 public:
         ossimDispMerging();
-        bool execute(vector<ossimStereoPair> StereoPairList, vector<ossimString> orthoListMask, vector<ossimRawImage> imageList, double currentRes, int ndisparities, int minimumDisp, int SADWindowSize);
+        bool execute(vector<ossimStereoPair> StereoPairList, vector<ossimString> orthoListMask, vector<ossimRawImage> imageList, double currentRes, ossimArgumentParser ap, int ndisparities, int minimumDisp, int SADWindowSize, string NS, string nd, string MD, string SAD);
         cv::Mat getMergedDisparity();
-        bool computeDsm(vector<ossimStereoPair> StereoPairList, ossimElevManager *elev, int b, ossimArgumentParser ap);
+        bool computeDsm(vector<ossimStereoPair> StereoPairList, ossimElevManager *elev, int b, ossimArgumentParser ap, string NS, string nd, string MD, string SAD);
         ossimRefPtr<ossimImageData> getDsm();
 
 private:

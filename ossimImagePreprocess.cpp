@@ -166,7 +166,7 @@ cv::Mat ossimImagePreprocess::wallis(cv::Mat image)
 
 	cv::namedWindow("Filtered_image", cv::WINDOW_NORMAL);
 	cv::imshow("Filtered_image", Filtered_image );
-	cv::waitKey(0);
+	//cv::waitKey(0);
 
     return Filtered_image;
 }

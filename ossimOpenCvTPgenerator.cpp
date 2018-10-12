@@ -43,9 +43,9 @@ bool ossimOpenCvTPgenerator::execute()
     TPwarp();
 
     //cv::Mat slave_mat_warp = TPfinder->warp(slave_mat);
-   // slave_mat_warp = TPfinder->warp(slave_mat);
+    //slave_mat_warp = TPfinder->warp(slave_mat);
 
-    //spostao in dispMapGen
+    //spostato in dispMapGen
     /*
     ossimOpenCvDisparityMapGenerator* dense_matcher = new ossimOpenCvDisparityMapGenerator();
     out_disp = dense_matcher->execute(master_mat_8U, slave_mat_warp);
@@ -85,8 +85,8 @@ void ossimOpenCvTPgenerator::TPgen()
     
 
     int maxTotalKeypoints = 500;
-    int gridRows_ = 1;
-    int gridCols_ = 1;
+    int gridRows_ = 5;
+    int gridCols_ = 5;
     int maxPerCell_ = maxTotalKeypoints / (gridRows_ * gridCols_);
 
 
@@ -350,7 +350,7 @@ void ossimOpenCvTPgenerator::TPdraw()
     cv::namedWindow("TP matched", cv::WINDOW_NORMAL );
     cv::imshow("TP matched", img_matches );
 
-    cv::waitKey(0);
+    //cv::waitKey(0);
 }
 
 bool ossimOpenCvTPgenerator::TPwarp()

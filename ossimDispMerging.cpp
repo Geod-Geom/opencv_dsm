@@ -30,7 +30,7 @@ ossimDispMerging::ossimDispMerging()
 }
 
 
-bool ossimDispMerging::execute(vector<ossimStereoPair> StereoPairList, vector<ossimString> orthoListMask, vector<ossimRawImage> imageList, double currentRes, int ndisparities, int minimumDisp, int SADWindowSize)
+bool ossimDispMerging::execute(vector<ossimStereoPair> StereoPairList, vector<ossimString> orthoListMask, vector<ossimRawImage> imageList, double currentRes, ossimArgumentParser ap, int ndisparities, int minimumDisp, int SADWindowSize, string NS, string nd, string MD, string SAD)
 {
     /*cout << endl << "ortho master path "<<StereoPairList[0].getOrthoMasterPath() << endl << endl;
     cout << "ortho slave path " <<StereoPairList[0].getOrthoSlavePath() << endl << endl;
@@ -85,7 +85,7 @@ bool ossimDispMerging::execute(vector<ossimStereoPair> StereoPairList, vector<os
 
         // Disparity map generation
         ossimOpenCvDisparityMapGenerator* dense_matcher = new ossimOpenCvDisparityMapGenerator();
-        dense_matcher->execute(master_mat_8U, stereoTP->getWarpedImage(), StereoPairList[i], ortho_rows, ortho_cols, currentRes, master_handler, ndisparities, minimumDisp, SADWindowSize); // dopo questo execute ho disp metrica
+        dense_matcher->execute(master_mat_8U, stereoTP->getWarpedImage(), StereoPairList[i], ortho_rows, ortho_cols, currentRes, ap, master_handler, ndisparities, minimumDisp, SADWindowSize, NS, nd, MD, SAD); // dopo questo execute ho disp metrica
 
         // Nel vettore globale di cv::Mat immagazzino tutte le mappe di disparità che genero ad ogni ciclo
         array_metric_disp.push_back(dense_matcher->getDisp());
@@ -347,9 +347,9 @@ bool ossimDispMerging::execute(vector<ossimStereoPair> StereoPairList, vector<os
 }
 
 
-bool ossimDispMerging::computeDsm(vector<ossimStereoPair> StereoPairList, ossimElevManager *elev, int b, ossimArgumentParser ap)
+bool ossimDispMerging::computeDsm(vector<ossimStereoPair> StereoPairList, ossimElevManager *elev, int b, ossimArgumentParser ap, string NS, string nd, string MD, string SAD)
 {
-    remove(ossimFilename(ossimFilename(ap[2]) + ossimString("temp_elevation/") + ossimFilename(ap[3])+ossimString(".TIF")));
+    remove(ossimFilename(ossimFilename(ap[2]) + ossimString("temp_elevation/") + ossimFilename(ap[3]) + ossimString("_ns_") + NS + ossimString("_nd_") + nd + ossimString("_MD_") + MD + ossimString("_SAD_") + SAD + ossimString(".TIF")));
 
     // Qui voglio sommare alla mappa di disparità fusa e metrica il dsm coarse
     // poi faccio il geocoding
@@ -370,7 +370,7 @@ bool ossimDispMerging::computeDsm(vector<ossimStereoPair> StereoPairList, ossimE
         cv::namedWindow( "merged_disp_compute0", cv::WINDOW_NORMAL );
         cv::imshow( "merged_disp_compute0", merged_disp_compute0);
         cv::imwrite( "merged_disp_compute0.tif", merged_disp_compute0);
-        cv::waitKey(0);
+        //cv::waitKey(0);
 
 
     for(int i=0; i< merged_disp.rows; i++)
@@ -409,7 +409,7 @@ bool ossimDispMerging::computeDsm(vector<ossimStereoPair> StereoPairList, ossimE
     cv::namedWindow( "merged_disp_compute1", cv::WINDOW_NORMAL );
     cv::imshow( "merged_disp_compute1", merged_disp_compute1);
     cv::imwrite( "merged_disp_compute1.tif", merged_disp_compute1);
-    cv::waitKey(0);
+    //cv::waitKey(0);
 
     // Set the destination image size:
     ossimIpt image_size (merged_disp.cols , merged_disp.rows);
@@ -431,9 +431,9 @@ bool ossimDispMerging::computeDsm(vector<ossimStereoPair> StereoPairList, ossimE
 
     ossimFilename pathDSM;
     if (b == 0)
-       pathDSM = ossimFilename(ap[2]) + ossimString("DSM/") + ossimFilename(ap[3]) + ossimString(".TIF");
+       pathDSM = ossimFilename(ap[2]) + ossimString("DSM/") + ossimFilename(ap[3]) + ossimString("_ns_") + NS + ossimString("_nd_") + nd + ossimString("_MD_") + MD + ossimString("_SAD_") + SAD + ossimString(".TIF");
     else
-        pathDSM = ossimFilename(ap[2]) + ossimString("temp_elevation/") + ossimFilename(ap[3])+ ossimString(".TIF");
+        pathDSM = ossimFilename(ap[2]) + ossimString("temp_elevation/") + ossimFilename(ap[3]) + ossimString("_ns_") + NS + ossimString("_nd_") + nd + ossimString("_MD_") + MD + ossimString("_SAD_") + SAD + ossimString(".TIF");
 
     cout << "path dsm " << pathDSM << endl;
 
@@ -661,7 +661,7 @@ bool ossimDispMerging::imgConversionTo8bit()
     cv::namedWindow( "slave_img", cv::WINDOW_NORMAL );
     cv::imshow("slave_img", slave_mat_8U);
 
-    cv::waitKey(0);
+    //cv::waitKey(0);
 
     return true;
 }

@@ -322,6 +322,7 @@ int main(int argc,  char* argv[])
         double MinHeight;
         double MaxHeight;
         int ndisparities, minimumDisp, SADWindowSize;  
+        string NS, nd, MD, SAD; /* strings useful for ortho-images and DSM paths expression*/
 
         /**********************************************/
         /**********************************************/
@@ -537,7 +538,7 @@ int main(int argc,  char* argv[])
             iterationLeft;
 
             // Elevation manager instance for coarse DSM reading
-            ossimFilename tempDSM = ossimFilename(ap[2]) + ossimString("temp_elevation/") + ossimFilename(ap[3])+ ossimString(".TIF");
+            ossimFilename tempDSM = ossimFilename(ap[2]) + ossimString("temp_elevation/") + ossimFilename(ap[3]) + ossimString("_ns_") + NS + ossimString("_nd_") + nd + ossimString("_MD_") + MD + ossimString("_SAD_") + SAD + ossimString(".TIF");
             ossimElevManager* elev = ossimElevManager::instance();
 
             if(b != nsteps-1)
@@ -574,10 +575,18 @@ int main(int argc,  char* argv[])
                 image_key.addPair("image1.file", imageList[n].getRawPath());
 
                 string Result;           // string which will contain the result
-                ostringstream convert;   // stream used for the conversion
-                convert << n;            // insert the textual representation of 'n' in the characters in the stream
-                Result = convert.str();
-                ossimString orthoPath = ossimFilename(ap[2]) + ossimString("ortho_images/") + ossimFilename(ap[3]) + ossimString("_level") + Level + ossimString("_image_") + Result + ossimString("_ortho.TIF");
+                ostringstream convert0, convert1, convert2, convert3, convert4;   // stream used for the conversion
+                convert0 << n;            // insert the textual representation of 'n' in the characters in the stream
+                convert1 << nsteps;
+                convert2 << ndisparities;
+                convert3 << minimumDisp;
+                convert4 << SADWindowSize;
+                Result = convert0.str();
+                NS = convert1.str();
+                nd = convert2.str();
+                MD = convert3.str();
+                SAD = convert4.str();
+                ossimString orthoPath = ossimFilename(ap[2]) + ossimString("ortho_images/") + ossimFilename(ap[3]) + ossimString("_level") + Level + ossimString("_image_") + Result + ossimString("_ns_") + NS + ossimString("_nd_") + nd + ossimString("_MD_") + MD + ossimString("_SAD_") + SAD + ossimString("_ortho.TIF");
                 image_key.add( ossimKeywordNames::OUTPUT_FILE_KW, orthoPath);
                 orthoList.push_back(orthoPath);
 
@@ -661,13 +670,13 @@ int main(int argc,  char* argv[])
             //StereoPairList[i].getOrthoSlavePath();
 
             ossimDispMerging *mergedDisp = new ossimDispMerging() ;
-            mergedDisp->execute(StereoPairList, orthoListMask, imageList, orthoRes, ndisparities, minimumDisp, SADWindowSize); // da qui voglio ottenere mappa di disparità fusa e metrica
+            mergedDisp->execute(StereoPairList, orthoListMask, imageList, orthoRes, ap, ndisparities, minimumDisp, SADWindowSize, NS, nd, MD, SAD); // da qui voglio ottenere mappa di disparità fusa e metrica
             cv::Mat FinalDisparity = mergedDisp->getMergedDisparity(); // questa è mappa di disparità fusa e metrica
 
             // Qui voglio sommare alla mappa di disparità fusa e metrica il dsm coarse
             // poi faccio il geocoding
             // poi esco da ciclo e rinizio a diversa risoluzione
-            mergedDisp->computeDsm(StereoPairList, elev, b, ap); // genero e salvo il dsm finale
+            mergedDisp->computeDsm(StereoPairList, elev, b, ap, NS, nd, MD, SAD); // genero e salvo il dsm finale
 
             delete mergedDisp;
             elev = 0;

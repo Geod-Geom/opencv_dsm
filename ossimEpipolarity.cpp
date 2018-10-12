@@ -57,14 +57,13 @@ ossimEpipolarity::ossimEpipolarity()
 	
     // Rotation for along-track OPTICAL images
     //********* To be commented for SAR images *********
-    //cv::transpose(master_mat, master_mat);
-    //cv::flip(master_mat, master_mat, 1);
+    cv::transpose(master_mat, master_mat);
+    cv::flip(master_mat, master_mat, 1);
 	
-    //cv::transpose(slave_mat, slave_mat);
-    //cv::flip(slave_mat, slave_mat, 1);
+    cv::transpose(slave_mat, slave_mat);
+    cv::flip(slave_mat, slave_mat, 1);
     //********* To be commented for SAR images *********
 }*/
-
 
 
 
