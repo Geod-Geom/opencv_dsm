@@ -92,6 +92,9 @@ void ossimOpenCvDisparityMapGenerator::execute(cv::Mat master_mat, cv::Mat slave
     //sgbm(master_mat, slave_mat, array_disp);
     //OPENCV3 //https://docs.opencv.org/3.4/d1/d9f/classcv_1_1stereo_1_1StereoBinarySGBM.html
     sgbm->compute (master_mat, slave_mat, array_disp);
+   
+    cout << "elapsed time in seconds: " << std::setiosflags(ios::fixed) << std::setprecision(3) << ossimTimer::instance()->time_s() << endl << endl;
+
     cv::imwrite( "float_Disparity_0.tif", array_disp);
 
     cv::FileStorage fs("test.yml", cv::FileStorage::WRITE);
@@ -101,8 +104,6 @@ void ossimOpenCvDisparityMapGenerator::execute(cv::Mat master_mat, cv::Mat slave
     minMaxLoc( array_disp, &minVal, &maxVal );
     array_disp.convertTo( array_disp_8U, CV_8UC1, 255/(maxVal - minVal), -minVal*255/(maxVal - minVal));
     
-    cout << "elapsed time in seconds: " << std::setiosflags(ios::fixed) << std::setprecision(3) << ossimTimer::instance()->time_s() << endl << endl;
-
     cout << "min\t" << minVal << " " << "max\t" << maxVal << endl;
     cv::namedWindow( "SGM Disparity", cv::WINDOW_NORMAL );
     cv::imshow( "SGM Disparity", array_disp_8U);
